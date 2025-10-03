@@ -1,5 +1,7 @@
 add_requires("glfw")
 add_requires("glad")
+add_requires("glm")
+add_requires("imgui", {configs = {glfw_opengl3 = true}})
 
 add_rules("mode.debug", "mode.release")
 
@@ -13,8 +15,10 @@ end
 
 target("M45x3D")
     set_kind("binary")
-    set_languages("c++23")
-  --add_headerfiles("src/**.h")
+    set_languages("c++17")
+    add_headerfiles("src/**.h")
     add_files("src/**.cpp")
     add_packages("glfw")
     add_packages("glad")
+    add_packages("glm")
+    add_packages("imgui")

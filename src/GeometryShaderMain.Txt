@@ -1,0 +1,150 @@
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include "renderer.h"
+
+// Vertex shader
+const GLchar* vertex_shader_src = R"glsl(
+    #version 150 core
+
+    in vec2 pos;
+    in float sides;
+    out float vSides;
+
+    void main()
+    {
+        gl_Position = vec4(pos, 0.0, 1.0);
+        vSides = sides;
+    }
+)glsl";
+
+// Geometry shader
+const GLchar* geometry_shader_src = R"glsl(
+    #version 150 core
+
+    layout(points) in;
+    layout(line_strip, max_vertices = 64) out;
+
+    in float vSides[];
+    const float PI = 3.1415926;
+
+    void main()
+    {
+
+        // Safe, GLfloats can represent small integers exactly
+        for (int i = 0; i <= vSides[0]; i++) {
+            // Angle between each side in radians
+            float ang = PI * 2.0 / vSides[0] * i;
+
+            // Offset from center of point (0.3 to accomodate for aspect ratio)
+            vec4 offset = vec4(cos(ang) * 0.4, -sin(ang) * 0.4, 0.0, 0.0);
+            gl_Position = gl_in[0].gl_Position + offset;
+
+            EmitVertex();
+        }
+
+        EndPrimitive();
+    }
+)glsl";
+
+// Fragment shader
+const GLchar* fragment_shader_src = R"glsl(
+    #version 150 core
+
+    out vec4 outColor;
+
+    void main()
+    {
+        outColor = vec4(0.0, 1.0, 0.25, 1.0);
+    }
+)glsl";
+
+
+int main(void)
+{
+    if (!glfwInit())
+        return -1;
+
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+    GLFWwindow* window = glfwCreateWindow(800, 800, "M45x3D", nullptr,nullptr);
+    if (!window)
+    {
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwMakeContextCurrent(window);
+
+    if (const int version = gladLoadGL(); version == 0)
+        return -1;
+
+    glClearColor(0.02f,0.02f,0.02f,0.0f);
+
+    // Compile and activate shaders
+    GLuint vertex_shader = create_shader(GL_VERTEX_SHADER,vertex_shader_src);
+    GLuint geometry_shader = create_shader(GL_GEOMETRY_SHADER, geometry_shader_src);
+    GLuint fragment_shader = create_shader(GL_FRAGMENT_SHADER, fragment_shader_src);
+
+    const GLuint shader_program = glCreateProgram();
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, geometry_shader);
+    glAttachShader(shader_program, fragment_shader);
+    
+    glLinkProgram(shader_program);
+        
+    glDeleteShader(fragment_shader);
+    glDeleteShader(geometry_shader);
+    glDeleteShader(vertex_shader);
+
+    glUseProgram(shader_program);
+
+    // Create VBO with point coordinates
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+
+    constexpr GLfloat points[] = {
+        -0.45f,  0.45f, 10.0f,
+        -0.25f, 0.35f ,  3.0f,
+        0.45f ,  0.45f, 6.0f ,
+        1.0f  , 0.2f  ,  8.0f,
+        0.45f , -0.45f, 5.0f ,
+        -0.9f , 1.0f  , 16.0f,
+        -0.45f, -0.45f, 4.0f ,
+        1.0f  , 0.0f  , 60.0f
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
+
+    // Create VAO
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    // Specify the layout of the vertex data
+    const GLint pos_attrib = glGetAttribLocation(shader_program, "pos");
+    glEnableVertexAttribArray(pos_attrib);
+    glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, 0, 3 * sizeof(GLfloat), 0);
+
+    const GLint sides_attrib = glGetAttribLocation(shader_program, "sides");
+    glEnableVertexAttribArray(sides_attrib);
+    glVertexAttribPointer(sides_attrib, 1, GL_FLOAT, 0, 3 * sizeof(GLfloat), (void*) (2 * sizeof(GLfloat)));
+    
+    /* Loop until the user closes the window */
+    while (!glfwWindowShouldClose(window))
+    {
+        
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        glDrawArrays(GL_POINTS, 0,8);
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    glDeleteProgram(shader_program);
+    glDeleteBuffers(1, &vbo);
+    glDeleteVertexArrays(1, &vao);
+
+    glfwTerminate();
+    return 0;
+}
