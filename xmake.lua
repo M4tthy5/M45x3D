@@ -1,7 +1,6 @@
 add_requires("glfw")
 add_requires("glad")
 add_requires("glm")
-add_requires("imgui", {configs = {glfw_opengl3 = true}})
 
 add_rules("mode.debug", "mode.release")
 
@@ -21,4 +20,3 @@ target("M45x3D")
     add_packages("glfw")
     add_packages("glad")
     add_packages("glm")
-    add_packages("imgui")

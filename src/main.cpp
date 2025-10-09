@@ -1,90 +1,117 @@
-#include <stdio.h>
+#include <algorithm>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include "renderer.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-#undef GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h> // Will drag system OpenGL headers
-
-static void glfw_error_callback(const int error, const char* description)
+int main(void)
 {
-    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
-}
-
-int main(int, char**)
-{
-    // Setup window
-    glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
-        return 1;
-    
-    // Create window with graphics context
+        return -1;
+ 
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "M45x3D", NULL, NULL);
-    if (window == NULL)
-        return 1;
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    GLFWwindow* window = glfwCreateWindow(800, 800, "M45x3D", nullptr,nullptr);
+    if (!window)
+    {
+        glfwTerminate();
+        return -1;
+    }
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
 
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    if (const int version = gladLoadGL(); version == 0)
+        return -1;
 
-    ImGui::StyleColorsDark();
+    glClearColor(0.02f,0.02f,0.02f,0.0f);
 
-    // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 130");
+    // Compile and activate shaders
+    const GLuint vertex_shader = create_shader(GL_VERTEX_SHADER,parse_source("res/shaders/vs_basic.glsl").c_str());
+    const GLuint geometry_shader = create_shader(GL_GEOMETRY_SHADER, parse_source("res/shaders/gs_basic.glsl").c_str());
+    const GLuint fragment_shader = create_shader(GL_FRAGMENT_SHADER, parse_source("res/shaders/fs_basic.glsl").c_str());
 
-    // Our state
-    bool show_demo_window = false;
-    bool vsync = true;
-    auto clear_color = ImVec4(0.45f, 0.55f, 0.60f, 0.2f);
+    const GLuint shader_program = glCreateProgram();
+    
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, geometry_shader);
+    glAttachShader(shader_program, fragment_shader);
+    
+    glLinkProgram(shader_program);
+        
+    glDeleteShader(fragment_shader);
+    glDeleteShader(geometry_shader);
+    glDeleteShader(vertex_shader);
 
-    // Main loop
+    glUseProgram(shader_program);
+
+    // Create VBO with point coordinates
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+
+    GLfloat points[] = {
+        -0.45f ,  0.45f , 4.0f ,
+         0.45f ,  0.45f , 3.0f ,
+        -0.45f , -0.45f , 4.0f ,
+         0.45f , -0.45f , 8.0f ,
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_DYNAMIC_DRAW);
+
+    // Create VAO
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    // Specify the layout of the vertex data
+    const GLint pos_attrib = glGetAttribLocation(shader_program, "pos");
+    glEnableVertexAttribArray(pos_attrib);
+    glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, 0, 3 * sizeof(GLfloat), 0);
+
+    const GLint sides_attrib = glGetAttribLocation(shader_program, "sides");
+    glEnableVertexAttribArray(sides_attrib);
+    glVertexAttribPointer(sides_attrib, 1, GL_FLOAT, 0, 3 * sizeof(GLfloat), (void*) (2 * sizeof(GLfloat)));
+
+    float speed_X = 2.0f;
+    float speed_Y = 0.15f;
+
+    float Time = 0;
+    
+    /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
-        glfwPollEvents();
-
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        const float new_time = static_cast<float>(glfwGetTime());
+        const float dt = new_time - Time;
+        Time = new_time;
         
-        glfwSwapInterval(vsync); // Enable vsync
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
+        speed_Y -= 10 * dt;
+        
+        if ( std::abs(points[0]) >= 1)
+            speed_X *= -1.0f;
+        if ( std::abs(points[1]) >= 1)
+            speed_Y *= -0.99f;
 
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-        {
-            ImGui::Begin("M45x3D");                          // Create a window called "Hello, world!" and append into it.
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::SameLine();
-            ImGui::Checkbox("Vsync", &vsync);
-            ImGui::ColorEdit4("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-        }
-
-        // Rendering
-        ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-
+        points[0] += speed_X * dt;
+        points[1] += speed_Y * dt;
+        
+        points[0] = std::clamp(points[0],-1.0f,1.0f);
+        points[1] = std::clamp(points[1],-1.0f,1.0f);
+        
         glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        
+        glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
+        
+        glDrawArrays(GL_POINTS, 0,4);
 
         glfwSwapBuffers(window);
+        glfwPollEvents();
     }
-    
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
 
-    glfwDestroyWindow(window);
+    glDeleteProgram(shader_program);
+    glDeleteBuffers(1, &vbo);
+    glDeleteVertexArrays(1, &vao);
+
     glfwTerminate();
-
     return 0;
 }
