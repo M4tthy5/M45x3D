@@ -1,4 +1,4 @@
-add_requires("glfw")
+add_requires("glfw 3.4")
 add_requires("glad")
 add_requires("glm")
 
