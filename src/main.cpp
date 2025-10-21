@@ -3,11 +3,16 @@
 
 #include <algorithm>
 #include <iostream>
+#include "glm/ext/matrix_clip_space.hpp"
+#include "glm/fwd.hpp"
 #include "renderer.h"
-// #include <glm/glm.hpp>
-// #include <glm/gtc/matrix_transform.hpp>
 
-int wx = 800 , wy = 800;
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+glm::mat4 proj = glm::ortho(-2,2,-1,1);
+
+int wx = 200 , wy = 200;
 
 void OnWindowResize(GLFWwindow* window, int width, int height){
     wx = width; wy = height;
@@ -70,12 +75,10 @@ int main(void)
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
 
-    // Create VAO
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    // Specify the layout of the vertex data
     const GLint pos_attrib = glGetAttribLocation(shader_program, "pos");
     glEnableVertexAttribArray(pos_attrib);
     glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, 0, 3 * sizeof(GLfloat), 0);
@@ -94,7 +97,6 @@ int main(void)
 
     std::cout << R"(M45x3D init)";
 
-    /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         glfwGetCursorPos(window, &m_x, &m_y);
