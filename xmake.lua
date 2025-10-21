@@ -4,7 +4,6 @@ add_requires("glm")
 
 add_rules("mode.debug", "mode.release")
 
-set_symbols("debug", "edit")
 set_rundir(".")
 
 if is_plat("windows") then

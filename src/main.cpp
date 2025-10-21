@@ -1,22 +1,30 @@
-
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
-
+#include <iostream>
 #include "renderer.h"
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+// #include <glm/glm.hpp>
+// #include <glm/gtc/matrix_transform.hpp>
+
+int wx = 800 , wy = 800;
+
+void OnWindowResize(GLFWwindow* window, int width, int height){
+    wx = width; wy = height;
+    glViewport(0, 0, width, height);
+}
+
+GLFWcursor* base_cursor = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+GLFWcursor* hand_cursor = glfwCreateStandardCursor(GLFW_RESIZE_ALL_CURSOR );
 
 int main(void)
 {
     if (!glfwInit())
         return -1;
- 
+
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    GLFWwindow* window = glfwCreateWindow(800, 800, "M45x3D", nullptr,nullptr);
+    GLFWwindow* window = glfwCreateWindow(wx, wy, "M45x3D", nullptr,nullptr);
     if (!window)
     {
         glfwTerminate();
@@ -24,11 +32,8 @@ int main(void)
     }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(0);
-    
-    GLFWcursor* base_cursor = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
     glfwSetCursor(window,base_cursor);
-    GLFWcursor* hand_cursor = glfwCreateStandardCursor(GLFW_RESIZE_ALL_CURSOR );
-    
+    glfwSetFramebufferSizeCallback(window,OnWindowResize);
 
     if (const int version = gladLoadGL(); version == 0)
         return -1;
@@ -41,13 +46,13 @@ int main(void)
     const GLuint fragment_shader = create_shader(GL_FRAGMENT_SHADER, parse_source("res/shaders/fs_basic.glsl").c_str());
 
     const GLuint shader_program = glCreateProgram();
-    
+
     glAttachShader(shader_program, vertex_shader);
     glAttachShader(shader_program, geometry_shader);
     glAttachShader(shader_program, fragment_shader);
-    
+
     glLinkProgram(shader_program);
-        
+
     glDeleteShader(fragment_shader);
     glDeleteShader(geometry_shader);
     glDeleteShader(vertex_shader);
@@ -59,7 +64,7 @@ int main(void)
     glGenBuffers(1, &vbo);
 
     GLfloat points[] = {
-        -0.45f ,  0.45f , 60.0f
+        -0.45f ,  0.45f , 20.0f
     };
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -83,26 +88,27 @@ int main(void)
     float speed_Y = 1.0f;
 
     float Time = 0;
-    unsigned int step = 1;
+    unsigned int step = 0;
+    float LastTime = 0;
     double m_x = 0, m_y = 0;
-    
+
+    std::cout << R"(M45x3D init)";
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         glfwGetCursorPos(window, &m_x, &m_y);
-        m_x = m_x/400.0f - 1;
-        m_y = 1 - m_y/400.0f;
-        
+        m_x = m_x/(0.5f*wx) - 1;
+        m_y = 1 - m_y/(0.5f*wy);
+
         const float new_time = static_cast<float>(glfwGetTime());
         const float dt = new_time - Time;
         Time = new_time;
-        
-        
-        
+        step++;
+
         speed_Y -= speed_Y * 0.1f * dt;
         speed_X -= speed_X * 0.1f * dt;
-        
-        
+
         if (glfwGetMouseButton(window,0))
         {
             glfwSetCursor(window,hand_cursor);
@@ -114,37 +120,31 @@ int main(void)
             glfwSetCursor(window,base_cursor);
             speed_Y -= 10 * dt;
         }
-        
-        if ( std::abs(points[0]) >= 0.9f)
-        {
-            speed_X *= -1.0f;
-//            glClear(GL_COLOR_BUFFER_BIT);
-        }
-            
-        if ( std::abs(points[1]) >= 0.9f)
-        {
-            speed_Y *= -1.0f;
-            // glClear(GL_COLOR_BUFFER_BIT);
-        }
-            
 
+        if ( std::abs(points[0]) >= 0.9f){
+            speed_X *= -1.0f;
+            points[0] = std::clamp(points[0],-.9f,.9f);
+        }
+        if ( std::abs(points[1]) >= 0.9f){
+            speed_Y *= -1.0f;
+            points[1] = std::clamp(points[1],-.9f,.9f);
+        }
         points[0] += speed_X * dt;
         points[1] += speed_Y * dt;
-        
-        points[0] = std::clamp(points[0],-.9f,.9f);
-        points[1] = std::clamp(points[1],-.9f,.9f);
-        
+
         glClear(GL_COLOR_BUFFER_BIT);
-        
+
         glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
-        
+
         glDrawArrays(GL_POINTS, 0,1);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
-        
-        std::string title = "M45x3D // x " + std::to_string(m_x) + ": y " + std::to_string(m_y) +" // " + std::to_string(static_cast<int>(1/dt)) + "fps" ;
-        glfwSetWindowTitle(window,title.c_str());
+
+        if(Time>(1+LastTime)){
+            std::cout << "\a" + std::to_string(step) + "fps\n";
+            step = 0;LastTime = Time;
+        }
     }
 
     glDeleteProgram(shader_program);

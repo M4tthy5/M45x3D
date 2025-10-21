@@ -79,6 +79,12 @@ inline vec3 operator/(const vec3& a, const vec3& b)
     return vec3(a.x / b.x, a.y / b.y, a.z / b.z);
 }
 
+inline vec3 operator/(const vec3& a, const u b)
+{
+    const auto s = vec3(b);
+    return a / s;
+}
+
 inline vec3 operator+=(const vec3& a, const vec3& b)
 {
     return a + b;

@@ -1,6 +1,8 @@
 #pragma once
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
-#include <iostream>
+
 #include <fstream>
 #include <sstream>
 
@@ -19,7 +21,7 @@ inline std::string parse_source(const GLchar* file)
     int id = 0;
     std::stringstream ss[3];
     std::string line;
-    
+
     while (getline(stream, line))
     {
         if (line.find("#shader") != std::string::npos)
